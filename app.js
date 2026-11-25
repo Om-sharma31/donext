@@ -417,7 +417,6 @@ function section(title, list, opts = {}) {
 
 function emptyState(emoji, title, text, action) {
   return el('div', { class: 'empty' },
-    el('div', { class: 'big', text: emoji }),
     el('h2', { text: title }),
     el('p', { text }),
     action || null,
@@ -814,7 +813,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 window.addEventListener('appinstalled', () => {
   $('#installItem').hidden = true;
-  showToast('DoNext installed 🎉');
+  showToast('DoNext installed');
 });
 
 /* ---------- Wiring ---------- */

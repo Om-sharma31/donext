@@ -93,10 +93,10 @@ function changeXP(delta, reason, opts = {}) {
   if (after.index > before.index) {
     later(() => {
       confetti();
-      showToast(`🎉 Rank up! You're now ${after.icon} ${after.name}`, { duration: 5000 });
+      showToast(`Rank up! You're now ${after.icon} ${after.name}`, { duration: 5000 });
     }, 900);
   } else if (after.index < before.index) {
-    later(() => showToast(`⬇️ Demoted to ${after.icon} ${after.name}. Missed deadlines cost XP!`, { duration: 5000 }), 900);
+    later(() => showToast(`Demoted to ${after.icon} ${after.name}. Missed deadlines cost XP!`, { duration: 5000 }), 900);
   }
 }
 
@@ -174,8 +174,8 @@ function checkMissedDeadlines() {
   const total = POINTS.missed * missed.length;
   changeXP(total, missed.length === 1 ? `Missed deadline: “${missed[0].title}”` : `Missed ${missed.length} deadlines`);
   later(() => showToast(missed.length === 1
-    ? `⏰ Missed deadline: “${missed[0].title}” (${total} XP)`
-    : `⏰ Missed ${missed.length} deadlines (${total} XP)`, { duration: 5000 }), 300);
+    ? `Missed deadline: “${missed[0].title}” (${total} XP)`
+    : `Missed ${missed.length} deadlines (${total} XP)`, { duration: 5000 }), 300);
 }
 
 /** Undo / un-ticking a task takes its points back. */
@@ -232,7 +232,7 @@ function checkBadges() {
       changeXP(POINTS.badge, `Badge: ${b.name}`, { silent: true });
       later(() => {
         confetti(60);
-        showToast(`🏅 Badge unlocked: ${b.icon} ${b.name} (+${POINTS.badge} XP)`, { duration: 5000 });
+        showToast(`Badge unlocked: ${b.icon} ${b.name} (+${POINTS.badge} XP)`, { duration: 5000 });
       }, 1200);
     }
   }
@@ -338,7 +338,7 @@ function openProfile() {
     el('div', { class: 'p-stats' },
       statTile('Tasks done', String(game.counts.done)),
       statTile('On-time rate', onTimeRate),
-      statTile('Streak', `${currentStreak()} 🔥`),
+      statTile('Streak', `${currentStreak()}`),
       statTile('Missed', String(game.counts.missed), game.counts.missed ? 'bad' : '')),
     el('h3', { class: 'set-h', text: `Badges · ${Object.keys(game.badges).length}/${BADGES.length}` }),
     badges,

@@ -191,7 +191,7 @@ function deadlineTs(t) {
   return new Date(y, m - 1, d, 23, 59, 59).getTime();
 }
 
-/** The 🤖 chip on each task row. */
+/** The chip on each task row. */
 function predictChip(t) {
   if (t.done || !t.estimate) return null;
   const pr = predictFor(taskInput(t));
@@ -204,11 +204,11 @@ function predictChip(t) {
   if (dl && minsLeft > 0 && minsLeft < 24 * 60 && t.time) {
     // How likely to make the deadline if you start now
     pct = Math.round(pr.pWithin(minsLeft + (t.spent || 0)) * 100);
-    text = `🤖 ${pct}% to make the deadline`;
+    text = `${pct}% to make the deadline`;
     tip += ` If you start now, chance to finish before the deadline: ${pct}%.`;
   } else {
     pct = Math.round(pr.pWithin(t.estimate) * 100);
-    text = `🤖 ~${fmtDur(round5ai(pr.median))} · ${pct}% within ${fmtDur(t.estimate)}`;
+    text = `~${fmtDur(round5ai(pr.median))} · ${pct}% within ${fmtDur(t.estimate)}`;
     tip += ` Chance to finish within your ${fmtDur(t.estimate)} estimate: ${pct}%.`;
   }
   const cls = pct >= 70 ? 'ai-good' : pct >= 40 ? 'ai-mid' : 'ai-bad';
@@ -231,18 +231,18 @@ function updateAiHint() {
   });
   hint.className = 'ai-hint';
   if (!est) {
-    hint.textContent = "🤖 Pick how long you think it'll take, and DoNext's AI will predict whether you can really do it in that time.";
+    hint.textContent = "Pick how long you think it'll take, and DoNext's AI will predict whether you can really do it in that time.";
     return;
   }
   if (!pr.trained) {
-    hint.textContent = `🤖 The AI is learning your pace (${pr.n}/${AI.MIN_SAMPLES} finished tasks with a measured time). Until then: most people need about 25% more time than they guess.`;
+    hint.textContent = `The AI is learning your pace (${pr.n}/${AI.MIN_SAMPLES} finished tasks with a measured time). Until then: most people need about 25% more time than they guess.`;
     return;
   }
   const p = Math.round(pr.pWithin(est) * 100);
   const sure = round5ai(pr.quantile(0.8416)); // 80th percentile
   hint.classList.add(p >= 70 ? 'ai-good' : p >= 40 ? 'ai-mid' : 'ai-bad');
-  hint.textContent = `🤖 Prediction: about ${fmtDur(round5ai(pr.median))} (likely ${fmtDur(round5ai(pr.low))}–${fmtDur(round5ai(pr.high))}). ` +
-    `Chance to finish in ${fmtDur(est)}: ${p}%.` + (p < 60 ? ` To be 80% sure, plan ${fmtDur(sure)}.` : ' Looks realistic 👍');
+  hint.textContent = `Prediction: about ${fmtDur(round5ai(pr.median))} (likely ${fmtDur(round5ai(pr.low))}–${fmtDur(round5ai(pr.high))}). ` +
+    `Chance to finish in ${fmtDur(est)}: ${p}%.` + (p < 60 ? ` To be 80% sure, plan ${fmtDur(sure)}.` : ' Looks realistic.');
 }
 document.getElementById('taskForm').addEventListener('input', updateAiHint);
 document.getElementById('taskForm').addEventListener('change', updateAiHint);
@@ -288,7 +288,7 @@ document.getElementById('logChoices').addEventListener('click', (e) => {
   recordSample(t);
   if (typeof gameOnLoggedTime === 'function') gameOnLoggedTime(t);
   render();
-  showToast(predictFor(taskInput(t)).trained ? '🤖 Got it. The AI updated its predictions.' : `🤖 Got it. ${Math.max(0, AI.MIN_SAMPLES - getModel().n)} more to unlock predictions.`);
+  showToast(predictFor(taskInput(t)).trained ? 'Got it. The AI updated its predictions.' : `Got it. ${Math.max(0, AI.MIN_SAMPLES - getModel().n)} more to unlock predictions.`);
 });
 document.getElementById('logSkip').addEventListener('click', () => logDialog.close());
 document.getElementById('logNever').addEventListener('click', () => {
@@ -350,7 +350,7 @@ function patterns(m) {
 
 function renderAiInsights() {
   const m = getModel();
-  const box = el('section', { class: 'insights ai-box' }, el('h3', { text: '🤖 AI insights' }));
+  const box = el('section', { class: 'insights ai-box' }, el('h3', { text: 'AI insights' }));
   if (m.n < AI.MIN_SAMPLES) {
     const bar = el('div', { class: 'ai-progress' }, el('span'));
     bar.firstChild.style.width = `${(m.n / AI.MIN_SAMPLES) * 100}%`;

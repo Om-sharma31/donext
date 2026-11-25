@@ -231,7 +231,7 @@ function renderPlan() {
   // Reality check: too much for today
   if (p.overflow.length) {
     out.push(el('div', { class: 'overload' },
-      el('h3', { text: `⚠️ Too much for today: ${fmtDur(p.overflowMin)} won't fit` }),
+      el('h3', { text: `Too much for today: ${fmtDur(p.overflowMin)} won't fit` }),
       el('p', { text: "These tasks are due but there's no time left for them. Move them now instead of feeling bad tonight:" }),
       el('ul', {}, p.overflow.map((o) => el('li', { text: `${o.task.title} (${fmtDur(o.need)})` }))),
       el('button', { type: 'button', class: 'btn small', 'data-plan-action': 'defer', text: 'Move them to tomorrow' }),
@@ -245,12 +245,12 @@ function renderPlan() {
     const isPast = b.end <= nowMin;
     const when = el('div', { class: 'when' }, clock(b.start), el('small', { text: fmtDur(b.end - b.start) }));
     if (b.kind === 'break') {
-      return el('li', { class: 'block break' }, when, el('span', { class: 'node' }), el('div', { class: 'card', text: '☕ Break' }));
+      return el('li', { class: 'block break' }, when, el('span', { class: 'node' }), el('div', { class: 'card', text: 'Break' }));
     }
     const t = b.task;
     const meta = el('div', { class: 'card-meta' },
       el('span', { class: 'chip prio', text: PRIORITIES[t.priority].label }),
-      b.kind === 'fixed' ? el('span', { class: 'chip', text: `📌 at ${formatTime(t.time)}` }) : null,
+      b.kind === 'fixed' ? el('span', { class: 'chip', text: `at ${formatTime(t.time)}` }) : null,
       b.parts > 1 ? el('span', { class: 'chip', text: `Part ${b.part} of ${b.parts}` }) : null,
       isOverdue(t) ? el('span', { class: 'chip overdue', text: 'Overdue' }) : null,
       b.optional ? el('span', { class: 'chip', text: t.due ? `Getting ahead · ${dueLabel(t)}` : 'Getting ahead' }) : null,
@@ -359,7 +359,7 @@ function renderInsights() {
     bars, labels,
     el('div', { class: 'ins-grid' },
       statTile('Focused', fmtDur(weekFocus), '', weekFocus ? `${fmtDur(weekFocus / 7)} a day on average` : 'Use ▶ Focus on a task'),
-      statTile('Tasks done', String(weekDone), '', streak ? `🔥 ${plural2(streak, 'day')} streak` : 'Finish one today to start a streak'),
+      statTile('Tasks done', String(weekDone), '', streak ? `${plural2(streak, 'day')} streak` : 'Finish one today to start a streak'),
       statTile('Best focus time', bestHour < 0 ? '—' : `${formatTime(fromMin(bestHour * 60))}`, '', bestHour < 0 ? 'Not enough data yet' : 'Plan hard tasks around then'),
       statTile('Estimates', sf.learned ? `${sf.factor.toFixed(1)}×` : '—', '',
         sf.learned ? (sf.factor > 1.1 ? 'Things take longer than you think' : sf.factor < 0.9 ? "You're faster than you think" : 'Your guesses are accurate')
@@ -449,7 +449,7 @@ function tick() {
   $('#focusSub').textContent = over
     ? (st.estimated ? "Taking longer than planned. That's fine, DoNext learns from it." : 'Pomodoro done. Take a short break or keep going.')
     : (st.estimated ? `Target: ${fmtDur(st.duration)} · ${PRIORITIES[t.priority].label} priority` : `25-minute Pomodoro · ${PRIORITIES[t.priority].label} priority`);
-  const label = `${st.pausedAt ? '⏸ ' : over ? '⏰ +' : ''}${mmss(left)}`;
+  const label = `${st.pausedAt ? '⏸ ' : over ? '+' : ''}${mmss(left)}`;
   $('#focusPillText').textContent = `${label} · ${t.title}`;
   document.title = `${label} · ${t.title}`;
   if (over && !st.alerted) {
