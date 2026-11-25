@@ -231,7 +231,7 @@ Vanilla JavaScript (no frameworks, no build step), CSS custom properties for the
 ## Author
 
 **Om Sharma** · [@Om-sharma31](https://github.com/Om-sharma31)
-B.Tech Data Science, Rungta University
+B.Tech Computer Science(AI & ML), Kalinga Institute of Industrial University
 
 ## License
 
