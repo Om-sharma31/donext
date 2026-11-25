@@ -18,6 +18,7 @@ const REPEATS = { none: 'Never', daily: 'Daily', weekly: 'Weekly', monthly: 'Mon
 
 const VIEWS = {
   today:    'Today',
+  plan:     'Plan my day',
   upcoming: 'Upcoming',
   all:      'All tasks',
   matrix:   'Priority matrix',
@@ -30,6 +31,8 @@ const ICON = {
   clock:  '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   repeat: '<svg viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 014-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 01-4 4H4"/></svg>',
   note:   '<svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',
+  timer:  '<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2h6"/></svg>',
+  play:   '<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>',
   flag:   '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
 };
 
@@ -112,6 +115,13 @@ function formatDay(s, long = false) {
   if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
   return d.toLocaleDateString(undefined, opts);
 }
+/** 95 → "1h 35m" */
+function fmtDur(min) {
+  const m = Math.max(0, Math.round(min));
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`;
+}
 function dueLabel(t) {
   if (!t.due) return '';
   const diff = dayDiff(t.due);
@@ -145,6 +155,8 @@ function normalizeTask(t) {
     time: isDate(t.due) && isTime(t.time) ? t.time : '',
     tag: typeof t.tag === 'string' ? cleanTag(t.tag) : '',
     repeat: REPEATS[t.repeat] ? t.repeat : 'none',
+    estimate: Number.isFinite(Number(t.estimate)) ? Math.max(0, Math.min(1440, Math.round(Number(t.estimate)))) : 0, // minutes
+    spent: Number.isFinite(Number(t.spent)) ? Math.max(0, Math.round(Number(t.spent) * 10) / 10) : 0, // focused minutes
     done,
     doneAt: done ? (Number.isFinite(t.doneAt) ? t.doneAt : Date.now()) : null,
     createdAt: Number.isFinite(t.createdAt) ? t.createdAt : Date.now(),
@@ -262,6 +274,7 @@ function toggleDone(id) {
   if (!t.done) {
     t.done = true;
     t.doneAt = Date.now();
+    if (typeof onTaskCompleted === 'function') onTaskCompleted(t);
     let msg = 'Nice — task completed';
     if (t.repeat !== 'none') {
       const next = nextOccurrence(t);
@@ -330,16 +343,20 @@ function parseDueWord(w) {
   return '';
 }
 function parseQuick(text) {
-  const out = { title: '', priority: 'medium', tag: '', due: '' };
+  const out = { title: '', priority: 'medium', tag: '', due: '', estimate: 0 };
   const rest = [];
   for (const word of text.trim().split(/\s+/)) {
     const w = word.toLowerCase();
     let due;
+    let est;
     if (/^!(h|high|1)$/.test(w)) out.priority = 'high';
     else if (/^!(m|med|medium|2)$/.test(w)) out.priority = 'medium';
     else if (/^!(l|low|3)$/.test(w)) out.priority = 'low';
     else if (/^#[^\s#]+$/.test(word)) out.tag = cleanTag(word);
     else if (w.startsWith('@') && (due = parseDueWord(w.slice(1)))) out.due = due;
+    else if ((est = w.match(/^~(\d+(?:\.\d+)?)(m|min|mins|h|hr|hrs)?$/))) {
+      out.estimate = Math.round(Number(est[1]) * (/^h/.test(est[2] || '') ? 60 : 1));
+    }
     else rest.push(word);
   }
   out.title = rest.join(' ');
@@ -359,9 +376,14 @@ function taskItem(t, opts = {}) {
     const cls = t.done ? 'chip' : overdue ? 'chip overdue' : dayDiff(t.due) === 0 ? 'chip today' : 'chip';
     meta.append(el('span', { class: cls, icon: ICON.clock }, overdue ? `Overdue · ${dueLabel(t)}` : dueLabel(t)));
   }
+  if (t.estimate || t.spent) {
+    const label = t.spent && t.estimate ? `${fmtDur(t.spent)} of ${fmtDur(t.estimate)}` : t.spent ? `${fmtDur(t.spent)} focused` : fmtDur(t.estimate);
+    meta.append(el('span', { class: 'chip', icon: ICON.timer }, label));
+  }
   if (t.tag) meta.append(el('span', { class: 'chip' }, '#' + t.tag));
   if (t.repeat !== 'none') meta.append(el('span', { class: 'chip', icon: ICON.repeat }, REPEATS[t.repeat]));
   if (t.notes) meta.append(el('span', { class: 'chip icon-only', icon: ICON.note, title: 'Has notes' }));
+  if (typeof predictChip === 'function') meta.append(predictChip(t) || '');
 
   return el(
     'li',
@@ -376,6 +398,7 @@ function taskItem(t, opts = {}) {
       el('span', { class: 'task-title', text: t.title }),
       meta,
     ),
+    t.done ? null : el('button', { class: 'del play', 'data-action': 'focus', 'aria-label': `Start focus on "${t.title}"`, title: 'Start focus timer', icon: ICON.play }),
     el('button', { class: 'del', 'data-action': 'delete', 'aria-label': `Delete "${t.title}"`, icon: ICON.trash }),
   );
 }
@@ -425,7 +448,8 @@ function renderToday() {
       el('div', { class: 'focus-title', text: next.title }),
       el('p', { class: 'why', text: whyText(next) }),
       el('div', { class: 'focus-actions' },
-        el('button', { 'data-action': 'toggle', text: 'Mark done' }),
+        el('button', { 'data-action': 'focus', text: '▶ Start focus' }),
+        el('button', { class: 'secondary', 'data-action': 'toggle', text: 'Mark done' }),
         el('button', { class: 'secondary', 'data-action': 'edit', text: 'Edit' }),
       ),
     ));
@@ -525,7 +549,7 @@ function renderDone() {
   ];
 }
 
-const RENDERERS = { today: renderToday, upcoming: renderUpcoming, all: renderAll, matrix: renderMatrix, done: renderDone };
+const RENDERERS = { plan: () => renderPlan(), today: renderToday, upcoming: renderUpcoming, all: renderAll, matrix: renderMatrix, done: renderDone };
 
 function updateHeader() {
   $('#viewTitle').textContent = VIEWS[state.view];
@@ -534,6 +558,7 @@ function updateHeader() {
   if (state.view === 'today') sub = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   else if (state.view === 'all') sub = `${open.length} open ${open.length === 1 ? 'task' : 'tasks'}`;
   else if (state.view === 'upcoming') sub = 'What is coming up, day by day';
+  else if (state.view === 'plan') sub = 'Your free time, filled with what matters most';
   else if (state.view === 'matrix') sub = 'Sort your tasks by importance and urgency';
   else if (state.view === 'done') sub = `${tasks.length - open.length} completed`;
   $('#viewSub').textContent = sub;
@@ -554,6 +579,7 @@ function updateHeader() {
 }
 
 function render() {
+  if (typeof beforeRender === 'function') beforeRender(); // game.js: deadlines, XP
   updateHeader();
   content.replaceChildren(...RENDERERS[state.view]().filter(Boolean));
   $('#tagList').replaceChildren(...allTags().map(([tag]) => el('option', { value: tag })));
@@ -567,7 +593,7 @@ const fields = form.elements;
 function openDialog(id = null, preset = {}) {
   const t = id ? findTask(id) : null;
   state.editingId = t ? t.id : null;
-  const data = t || { title: '', priority: 'medium', due: '', time: '', tag: '', repeat: 'none', notes: '', ...preset };
+  const data = t || { title: '', priority: 'medium', due: '', time: '', tag: '', repeat: 'none', notes: '', estimate: 0, ...preset };
   $('#dlgTitle').textContent = t ? 'Edit task' : 'New task';
   fields.title.value = data.title;
   fields.title.classList.remove('invalid');
@@ -576,8 +602,12 @@ function openDialog(id = null, preset = {}) {
   fields.time.value = data.time;
   fields.tag.value = data.tag;
   fields.repeat.value = data.repeat;
+  const est = String(data.estimate || 0);
+  if (![...fields.estimate.options].some((o) => o.value === est)) fields.estimate.append(el('option', { value: est, text: fmtDur(Number(est)) }));
+  fields.estimate.value = est;
   fields.notes.value = data.notes;
   $('#dlgDelete').hidden = !t;
+  if (typeof updateAiHint === 'function') updateAiHint();
   closeMenu();
   if (typeof dialog.showModal === 'function') dialog.showModal();
   else dialog.setAttribute('open', '');
@@ -609,6 +639,7 @@ form.addEventListener('submit', (e) => {
     time: due ? time : '',
     tag: cleanTag(fields.tag.value),
     repeat,
+    estimate: Number(fields.estimate.value) || 0,
     notes: fields.notes.value.trim(),
   };
   if (state.editingId) {
@@ -643,18 +674,29 @@ for (const btn of $$('[data-due]', dialog)) {
 }
 
 /* ---------- Toast ---------- */
-function showToast(message, undoable = false) {
+let toastAction = null;
+/** showToast(msg, true) shows an Undo button.
+    showToast(msg, { actionLabel, onAction, duration }) shows a custom button. */
+function showToast(message, opts = false) {
+  const o = typeof opts === 'object' && opts ? opts : { undo: Boolean(opts) };
   const toast = $('#toast');
+  const btn = $('#toastUndo');
   $('#toastMsg').textContent = message;
-  $('#toastUndo').hidden = !undoable;
+  toastAction = o.undo ? undo : o.onAction || null;
+  btn.textContent = o.undo ? 'Undo' : o.actionLabel || 'OK';
+  btn.hidden = !toastAction;
   toast.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(hideToast, undoable ? 6000 : 2500);
+  toastTimer = setTimeout(hideToast, o.duration || (toastAction ? 6000 : 2500));
 }
 function hideToast() {
   $('#toast').hidden = true;
 }
-$('#toastUndo').addEventListener('click', undo);
+$('#toastUndo').addEventListener('click', () => {
+  const fn = toastAction;
+  hideToast();
+  if (fn) fn();
+});
 
 /* ---------- Menu, theme, backup, install ---------- */
 const menu = $('#menu');
@@ -680,7 +722,9 @@ function applyTheme() {
 }
 
 function exportBackup() {
-  const payload = { app: 'DoNext', version: 1, exportedAt: new Date().toISOString(), tasks };
+  const extras = {};
+  for (const k of EXTRA_KEYS) extras[k] = readJSON(k, null);
+  const payload = { app: 'DoNext', version: 2, exportedAt: new Date().toISOString(), tasks, extras };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = el('a', { href: url, download: `donext-backup-${dateStr()}.json` });
@@ -691,6 +735,7 @@ function exportBackup() {
   showToast('Backup downloaded');
 }
 
+const EXTRA_KEYS = ['donext.game.v1', 'donext.samples.v1', 'donext.sessions.v1', 'donext.stats.v1'];
 async function importBackup(file) {
   try {
     const data = JSON.parse(await file.text());
@@ -708,6 +753,15 @@ async function importBackup(file) {
     }
     tasks = [...byId.values()];
     saveTasks();
+    // Rank, XP and AI training data: keep whichever device has more progress
+    const ex = data && data.extras;
+    const localGame = readJSON('donext.game.v1', null);
+    if (ex && ex['donext.game.v1'] && (!localGame || (ex['donext.game.v1'].earned || 0) >= (localGame.earned || 0))) {
+      for (const k of EXTRA_KEYS) if (ex[k] != null) writeJSON(k, ex[k]);
+      showToast('Imported tasks, XP and AI data. Reloading…');
+      setTimeout(() => location.reload(), 1200);
+      return;
+    }
     render();
     showToast(`Imported: ${added} new, ${updated} updated`, true);
   } catch {
@@ -804,6 +858,7 @@ content.addEventListener('click', (e) => {
     }
   } else if (action === 'edit') openDialog(id);
   else if (action === 'delete') deleteTask(id);
+  else if (action === 'focus' && typeof startFocus === 'function') startFocus(id);
 });
 
 $('#quickAdd').addEventListener('submit', (e) => {
@@ -839,7 +894,8 @@ searchInput.addEventListener('input', () => {
 document.addEventListener('keydown', (e) => {
   const typing = e.target.closest('input, textarea, select, [contenteditable]');
   if (e.key === 'Escape' && !menu.hidden) closeMenu();
-  if (typing || dialog.open || e.metaKey || e.ctrlKey || e.altKey) return;
+  const focusOpen = document.getElementById('focus') && !document.getElementById('focus').hidden;
+  if (typing || focusOpen || document.querySelector('dialog[open]') || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'n' || e.key === 'N') {
     e.preventDefault();
     $('#quickInput').focus();
@@ -851,7 +907,10 @@ document.addEventListener('keydown', (e) => {
 
 // Keep dates fresh (e.g. app left open past midnight) and sync between tabs
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
-setInterval(() => { if (!document.hidden && !dialog.open) render(); }, 60000);
+setInterval(() => {
+  const editing = document.activeElement && content.contains(document.activeElement) && document.activeElement.matches('input, select');
+  if (!document.hidden && !dialog.open && !editing) render();
+}, 60000);
 window.addEventListener('storage', (e) => {
   if (e.key === STORAGE_KEY) {
     tasks = loadTasks();
@@ -859,8 +918,40 @@ window.addEventListener('storage', (e) => {
   }
 });
 
+/* ---------- "Desktop site" detection ----------
+   Phones with "Desktop site" switched on pretend to be a computer: the page gets a
+   ~980px wide screen, so the laptop layout shows up tiny. We spot it by a touch
+   screen that is phone-sized but a user-agent that claims to be a desktop. */
+function checkDesktopMode() {
+  const ua = navigator.userAgent;
+  const claimsDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  const touch = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
+  const phoneScreen = Math.min(screen.width, screen.height) < 600;
+  const stretched = window.innerWidth > Math.min(screen.width, screen.height) * 1.5;
+  const tip = $('#desktopModeTip');
+  if (!(claimsDesktop && touch && phoneScreen && stretched) || settings.desktopTipHidden) {
+    tip.hidden = true;
+    return;
+  }
+  const apple = /Macintosh/.test(ua);
+  $('#desktopModeHow').textContent = apple
+    ? 'In Safari tap the “aA” button in the address bar → “Request Mobile Website”.'
+    : 'In Chrome tap ⋮ (top right) and untick “Desktop site”. If DoNext is installed as an app: open Chrome → Settings → Site settings → Desktop site → turn it off, then reopen DoNext.';
+  // Scale the message up so it is readable on the zoomed-out page
+  const scale = Math.max(1, window.innerWidth / Math.min(screen.width, screen.height));
+  tip.style.fontSize = Math.round(15 * scale) + 'px';
+  tip.hidden = false;
+}
+$('#desktopModeOk').addEventListener('click', () => {
+  settings.desktopTipHidden = true;
+  writeJSON(SETTINGS_KEY, settings);
+  $('#desktopModeTip').hidden = true;
+});
+window.addEventListener('resize', checkDesktopMode);
+
 /* ---------- Start ---------- */
 applyTheme();
+checkDesktopMode();
 if (isStandalone()) $('#installItem').hidden = true;
 render();
 

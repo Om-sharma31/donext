@@ -1,11 +1,14 @@
 /* DoNext service worker — makes the app work offline.
    Bump CACHE_VERSION whenever you change any app file so users get the update. */
-const CACHE_VERSION = 'donext-v1';
+const CACHE_VERSION = 'donext-v5';
 const APP_FILES = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './ai.js',
+  './planner.js',
+  './game.js',
   './manifest.webmanifest',
   './icons/favicon.svg',
   './icons/icon-192.png',
@@ -54,5 +57,16 @@ self.addEventListener('fetch', (event) => {
       if (shell) return shell;
     }
     return Response.error();
+  })());
+});
+
+// Tapping a reminder notification opens (or focuses) the app
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = all.find((c) => c.url.startsWith(self.registration.scope));
+    if (existing) return existing.focus();
+    return self.clients.openWindow('./');
   })());
 });
